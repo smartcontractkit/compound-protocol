@@ -2,6 +2,7 @@ import { Event } from '../Event';
 import { addAction, describeUser, World } from '../World';
 import { decodeCall, getPastEvents } from '../Contract';
 import { CToken, CTokenScenario } from '../Contract/CToken';
+import { CPoR } from '../Contract/CPoR';
 import { CErc20Delegate } from '../Contract/CErc20Delegate'
 import { CErc20Delegator } from '../Contract/CErc20Delegator'
 import { invoke, Sendable } from '../Invokation';
@@ -487,6 +488,30 @@ async function printLiquidity(world: World, cToken: CToken): Promise<World> {
   return world;
 }
 
+async function setFeed(world: World, from: string, cToken: CPoR, newFeed: string): Promise<World> {
+  let invokation = await invoke(world, cToken.methods._setFeed(newFeed), from, CTokenErrorReporter);
+
+  world = addAction(
+    world,
+    `Set feed for ${cToken.name} to ${newFeed} as ${describeUser(world, from)}`,
+    invokation
+  );
+
+  return world;
+}
+
+async function setHeartbeat(world: World, from: string, cToken: CPoR, newHeartbeat: number): Promise<World> {
+  let invokation = await invoke(world, cToken.methods._setHeartbeat(newHeartbeat), from, CTokenErrorReporter);
+
+  world = addAction(
+    world,
+    `Set heartbeat for ${cToken.name} to ${newHeartbeat} as ${describeUser(world, from)}`,
+    invokation
+  );
+
+  return world;
+}
+
 export function cTokenCommands() {
   return [
     new Command<{ cTokenParams: EventV }>(`
@@ -925,7 +950,37 @@ export function cTokenCommands() {
       ],
       (world, { cToken, input }) => decodeCall(world, cToken, input.val),
       { namePos: 1 }
-    )
+    ),
+    new Command<{ cToken: CPoR, address: AddressV }>(`
+        #### SetFeed
+
+        * "CToken <CPoR> SetFeed address:<AddressV>" - Sets the feed for the given CPoR cToken
+          Only works for CPoR cTokens!
+          * E.g. "CToken cPAXG SetFeed 0x123..."
+      `,
+      "SetFeed",
+      [
+        new Arg("cToken", getCTokenV),
+        new Arg("address", getAddressV)
+      ],
+      (world, from, { cToken, address }) => setFeed(world, from, cToken, address.val),
+      { namePos: 1 }
+    ),
+    new Command<{ cToken: CPoR, heartbeat: NumberV }>(`
+        #### SetHeartbeat
+
+        * "CToken <CPoR> SetHeartbeat number:<NumberV>" - Sets the heartbeat for the given CPoR cToken
+          Only works for CPoR cTokens!
+          * E.g. "CToken cPAXG SetHeartbeat 86400..."
+      `,
+      "SetHeartbeat",
+      [
+        new Arg("cToken", getCTokenV),
+        new Arg("heartbeat", getNumberV)
+      ],
+      (world, from, { cToken, heartbeat }) => setHeartbeat(world, from, cToken, heartbeat.toNumber()),
+      { namePos: 1 }
+    ),
   ];
 }
 
