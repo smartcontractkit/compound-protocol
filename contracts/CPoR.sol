@@ -1,7 +1,7 @@
 pragma solidity ^0.5.16;
 
 import "./CErc20Delegate.sol";
-import "./AggregatorV3Interface.sol";
+import "./AggregatorV2V3Interface.sol";
 
 /**
  * @title Compound's CPoR (Proof of Reserves) Contract
@@ -53,7 +53,7 @@ contract CPoR is CErc20Delegate, CPoRInterface {
 
         MathError mathErr;
         // Get the latest details from the feed
-        (,int answer,,uint updatedAt,) = AggregatorV3Interface(feed).latestRoundData();
+        (,int answer,,uint updatedAt,) = AggregatorV2V3Interface(feed).latestRoundData();
 
         uint oldestAllowed;
         // Use MAX_AGE if heartbeat is not explicitly set
@@ -70,7 +70,7 @@ contract CPoR is CErc20Delegate, CPoRInterface {
         // Get required info
         uint underlyingSupply = EIP20Interface(underlying).totalSupply();
         uint8 underlyingDecimals = EIP20Interface(underlying).decimals();
-        uint8 feedDecimals = AggregatorV3Interface(feed).decimals();
+        uint8 feedDecimals = AggregatorV2V3Interface(feed).decimals();
         uint answerUint = uint(answer);
 
         // Check that the feed and underlying token decimals are equivalent and normalize if not
