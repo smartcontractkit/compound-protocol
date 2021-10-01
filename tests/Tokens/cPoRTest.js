@@ -3,7 +3,8 @@ const {
   etherMantissa,
   increaseTime,
   getTime,
-  UInt256Max
+  UInt256Max,
+  unlockedAccounts
 } = require('../Utils/Ethereum');
 
 const {
@@ -37,9 +38,9 @@ describe('CPoR', function () {
         kind: 'bool'
       },
       exchangeRate,
-      underlying: token
+      underlying: token,
+      symbol: 'cWBTC'
     });
-    impl = await saddle.getContractAt('CPoR', cToken._address);
   });
 
   describe('mintFresh', () => {
@@ -52,50 +53,50 @@ describe('CPoR', function () {
     });
 
     it('should mint if the feed is set and heartbeat is unset', async () => {
-      await send(impl, '_setFeed', [feed._address]);
-      expect(await call(impl, 'feed')).toEqual(feed._address);
+      await send(cToken, '_setFeed', [feed._address]);
+      expect(await call(cToken, 'feed')).toEqual(feed._address);
       expect(await mintFresh(cToken, minter, mintAmount)).toSucceed();
     });
 
     it('should mint if the feed is set and heartbeat is set', async () => {
-      await send(impl, '_setFeed', [feed._address]);
-      await send(impl, '_setHeartbeat', [86400]);
+      await send(cToken, '_setFeed', [feed._address]);
+      await send(cToken, '_setHeartbeat', [86400]);
       const currentTime = await getTime();
       const updatedAt = await call(feed, 'latestTimestamp');
-      const heartbeat = await call(impl, 'heartbeat');
+      const heartbeat = await call(cToken, 'heartbeat');
       expect(currentTime - heartbeat > updatedAt).toEqual(false);
-      expect(await call(impl, 'feed')).toEqual(feed._address);
+      expect(await call(cToken, 'feed')).toEqual(feed._address);
       expect(await mintFresh(cToken, minter, mintAmount)).toSucceed();
     });
 
     it('should mint if the feed decimals is less than the underlying decimals', async () => {
       const newFeed = await deploy('MockV3Aggregator', [6, 1000000]);
-      await send(impl, '_setFeed', [newFeed._address]);
-      expect(await call(impl, 'feed')).toEqual(newFeed._address);
+      await send(cToken, '_setFeed', [newFeed._address]);
+      expect(await call(cToken, 'feed')).toEqual(newFeed._address);
       expect(await mintFresh(cToken, minter, mintAmount)).toSucceed();
     });
 
     it('should mint if the feed decimals is more than the underlying decimals', async () => {
       const newFeed = await deploy('MockV3Aggregator', [18, etherUnsigned(1e18)]);
-      await send(impl, '_setFeed', [newFeed._address]);
-      expect(await call(impl, 'feed')).toEqual(newFeed._address);
+      await send(cToken, '_setFeed', [newFeed._address]);
+      expect(await call(cToken, 'feed')).toEqual(newFeed._address);
       expect(await mintFresh(cToken, minter, mintAmount)).toSucceed();
     });
 
     it('should revert if the feed is not updated within the heartbeat', async () => {
-      await send(impl, '_setFeed', [feed._address]);
-      await send(impl, '_setHeartbeat', [1]);
+      await send(cToken, '_setFeed', [feed._address]);
+      await send(cToken, '_setHeartbeat', [1]);
       await increaseTime(10);
       const currentTime = await getTime();
       const updatedAt = await call(feed, 'latestTimestamp');
-      const heartbeat = await call(impl, 'heartbeat');
+      const heartbeat = await call(cToken, 'heartbeat');
       expect(currentTime - heartbeat > updatedAt).toEqual(true);
-      expect(await call(impl, 'feed')).toEqual(feed._address);
+      expect(await call(cToken, 'feed')).toEqual(feed._address);
       expect(await mintFresh(cToken, minter, mintAmount)).toHaveTokenFailure('TOKEN_MINT_ERROR', 'MINT_FEED_HEARTBEAT_CHECK');
     });
 
     it('should revert if the reserves are not met', async () => {
-      await send(impl, '_setFeed', [feed._address]);
+      await send(cToken, '_setFeed', [feed._address]);
       await send(token, 'mint', [1]);
       expect(await mintFresh(cToken, minter, mintAmount)).toHaveTokenFailure('TOKEN_MINT_ERROR', 'MINT_FEED_SUPPLY_CHECK');
     });
@@ -103,42 +104,42 @@ describe('CPoR', function () {
 
   describe('_setFeed', () => {
     it('should only be callable by admin', async () => {
-      expect(await send(impl, '_setFeed', [feed._address], {from: minter})).toHaveTokenFailure('UNAUTHORIZED', 'SET_FEED_ADMIN_OWNER_CHECK');
+      expect(await send(cToken, '_setFeed', [feed._address], {from: minter})).toHaveTokenFailure('UNAUTHORIZED', 'SET_FEED_ADMIN_OWNER_CHECK');
     });
 
     it('should set the feed', async () => {
-      expect(await send(impl, '_setFeed', [feed._address])).toSucceed();
-      expect(await call(impl, 'feed')).toEqual(feed._address);
+      expect(await send(cToken, '_setFeed', [feed._address])).toSucceed();
+      expect(await call(cToken, 'feed')).toEqual(feed._address);
     });
 
     it('should unset the feed', async () => {
-      expect(await send(impl, '_setFeed', [feed._address])).toSucceed();
-      expect(await call(impl, 'feed')).toEqual(feed._address);
+      expect(await send(cToken, '_setFeed', [feed._address])).toSucceed();
+      expect(await call(cToken, 'feed')).toEqual(feed._address);
       const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
-      expect(await send(impl, '_setFeed', [ZERO_ADDRESS])).toSucceed();
-      expect(await call(impl, 'feed')).toEqual(ZERO_ADDRESS);
+      expect(await send(cToken, '_setFeed', [ZERO_ADDRESS])).toSucceed();
+      expect(await call(cToken, 'feed')).toEqual(ZERO_ADDRESS);
     });
   });
 
   describe('_setHeartbeat', () => {
     it('should only be callable by admin', async () => {
-      expect(await send(impl, '_setHeartbeat', [1], {from: minter})).toHaveTokenFailure('UNAUTHORIZED', 'SET_FEED_HEARTBEAT_ADMIN_OWNER_CHECK');
+      expect(await send(cToken, '_setHeartbeat', [1], {from: minter})).toHaveTokenFailure('UNAUTHORIZED', 'SET_FEED_HEARTBEAT_ADMIN_OWNER_CHECK');
     });
 
     it('should revert if newHeartbeat > MAX_AGE', async () => {
-      expect(await send(impl, '_setHeartbeat', [864000 * 7 + 1])).toHaveTokenFailure('BAD_INPUT', 'SET_FEED_HEARTBEAT_INPUT_CHECK');
+      expect(await send(cToken, '_setHeartbeat', [864000 * 7 + 1])).toHaveTokenFailure('BAD_INPUT', 'SET_FEED_HEARTBEAT_INPUT_CHECK');
     });
 
     it('should set the heartbeat', async () => {
-      expect(await send(impl, '_setHeartbeat', [1])).toSucceed();
-      expect(await call(impl, 'heartbeat')).toEqual('1');
+      expect(await send(cToken, '_setHeartbeat', [1])).toSucceed();
+      expect(await call(cToken, 'heartbeat')).toEqual('1');
     });
 
     it('should unset the heartbeat', async () => {
-      expect(await send(impl, '_setHeartbeat', [1])).toSucceed();
-      expect(await call(impl, 'heartbeat')).toEqual('1');
-      expect(await send(impl, '_setHeartbeat', [0])).toSucceed();
-      expect(await call(impl, 'heartbeat')).toEqual('0');
+      expect(await send(cToken, '_setHeartbeat', [1])).toSucceed();
+      expect(await call(cToken, 'heartbeat')).toEqual('1');
+      expect(await send(cToken, '_setHeartbeat', [0])).toSucceed();
+      expect(await call(cToken, 'heartbeat')).toEqual('0');
     });
   });
 });

@@ -174,7 +174,7 @@ async function makeCToken(opts = {}) {
     case 'cpor':
       underlying = opts.underlying || await makeToken(opts.underlyingOpts);
       cDelegatee = await deploy('CPoRDelegateHarness');
-      cDelegator = await deploy('CErc20Delegator',
+      cDelegator = await deploy('CPoRDelegator',
         [
           underlying._address,
           comptroller._address,
@@ -188,7 +188,7 @@ async function makeCToken(opts = {}) {
           "0x0"
         ]
       );
-      cToken = await saddle.getContractAt('CErc20DelegateHarness', cDelegator._address);
+      cToken = await saddle.getContractAt('CPoRDelegateHarness', cDelegator._address);
       break;
 
     case 'ccomp':
