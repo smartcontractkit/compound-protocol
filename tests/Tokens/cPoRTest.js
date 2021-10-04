@@ -95,6 +95,12 @@ describe('CPoR', function () {
       expect(await mintFresh(cToken, minter, mintAmount)).toHaveTokenFailure('TOKEN_MINT_ERROR', 'MINT_FEED_HEARTBEAT_CHECK');
     });
 
+    it('should revert if the reserves answer is negative', async () => {
+      feed = await deploy('MockV3Aggregator', [8, -10000]);
+      await send(cToken, '_setFeed', [feed._address]);
+      expect(await mintFresh(cToken, minter, mintAmount)).toHaveTokenFailure('TOKEN_MINT_ERROR', 'MINT_FEED_INVALID_ANSWER');
+    });
+
     it('should revert if the reserves are not met', async () => {
       await send(cToken, '_setFeed', [feed._address]);
       await send(token, 'mint', [1]);

@@ -25,6 +25,9 @@ contract CPoR is CErc20, CPoRInterface {
         MathError mathErr;
         // Get the latest details from the feed
         (,int answer,,uint updatedAt,) = AggregatorV2V3Interface(feed).latestRoundData();
+        if (answer < 0) {
+            return (fail(Error.TOKEN_MINT_ERROR, FailureInfo.MINT_FEED_INVALID_ANSWER), 0);
+        }
 
         uint oldestAllowed;
         // Use MAX_AGE if heartbeat is not explicitly set
@@ -33,7 +36,7 @@ contract CPoR is CErc20, CPoRInterface {
             return (fail(Error.MATH_ERROR, FailureInfo.MINT_FEED_INVALID_TIMESTAMP), 0);
         }
 
-        // Check that the feed's answer is updated with the heartbeat
+        // Check that the feed's answer is updated within the heartbeat
         if (oldestAllowed > updatedAt) {
             return (fail(Error.TOKEN_MINT_ERROR, FailureInfo.MINT_FEED_HEARTBEAT_CHECK), 0);
         }
@@ -42,21 +45,21 @@ contract CPoR is CErc20, CPoRInterface {
         uint underlyingSupply = EIP20Interface(underlying).totalSupply();
         uint8 underlyingDecimals = EIP20Interface(underlying).decimals();
         uint8 feedDecimals = AggregatorV2V3Interface(feed).decimals();
-        uint answerUint = uint(answer);
+        uint reserves = uint(answer);
 
         // Check that the feed and underlying token decimals are equivalent and normalize if not
         if (underlyingDecimals < feedDecimals) {
             (mathErr, underlyingSupply) = mulUInt(underlyingSupply, 10 ** uint(feedDecimals - underlyingDecimals));
         } else if (feedDecimals < underlyingDecimals) {
-            (mathErr, answerUint) = mulUInt(answerUint, 10 ** uint(underlyingDecimals - feedDecimals));
+            (mathErr, reserves) = mulUInt(reserves, 10 ** uint(underlyingDecimals - feedDecimals));
         }
 
         if (mathErr != MathError.NO_ERROR) {
             return (fail(Error.MATH_ERROR, FailureInfo.MINT_FEED_INVALID_DECIMALS), 0);
         }
 
-        // Check that the supply of underlying tokens is not greater than the proof of reserves
-        if (underlyingSupply > answerUint) {
+        // Ensure that the current supply of underlying tokens is not greater than the reported reserves
+        if (underlyingSupply > reserves) {
             return (fail(Error.TOKEN_MINT_ERROR, FailureInfo.MINT_FEED_SUPPLY_CHECK), 0);
         }
 
