@@ -18,20 +18,22 @@ contract CPoR is CErc20, CPoRInterface {
      * @return (uint, uint) An error code (0=success, otherwise a failure, see ErrorReporter.sol), and the actual mint amount.
      */
     function mintFresh(address account, uint mintAmount) internal returns (uint, uint) {
-        if (feed == address(0)) {
+        AggregatorV2V3Interface aggregator = AggregatorV2V3Interface(feed);
+        if (address(aggregator) == address(0)) {
             return super.mintFresh(account, mintAmount);
         }
 
         MathError mathErr;
         // Get the latest details from the feed
-        (,int answer,,uint updatedAt,) = AggregatorV2V3Interface(feed).latestRoundData();
+        (,int answer,,uint updatedAt,) = aggregator.latestRoundData();
         if (answer < 0) {
             return (fail(Error.TOKEN_MINT_ERROR, FailureInfo.MINT_FEED_INVALID_ANSWER), 0);
         }
 
         uint oldestAllowed;
         // Use MAX_AGE if heartbeat is not explicitly set
-        (mathErr, oldestAllowed) = subUInt(block.timestamp, heartbeat == 0 ? MAX_AGE : heartbeat);
+        uint heartbeat_ = heartbeat;
+        (mathErr, oldestAllowed) = subUInt(block.timestamp, heartbeat_ == 0 ? MAX_AGE : heartbeat_);
         if (mathErr != MathError.NO_ERROR) {
             return (fail(Error.MATH_ERROR, FailureInfo.MINT_FEED_INVALID_TIMESTAMP), 0);
         }
@@ -42,9 +44,10 @@ contract CPoR is CErc20, CPoRInterface {
         }
 
         // Get required info
-        uint underlyingSupply = EIP20Interface(underlying).totalSupply();
-        uint8 underlyingDecimals = EIP20Interface(underlying).decimals();
-        uint8 feedDecimals = AggregatorV2V3Interface(feed).decimals();
+        EIP20Interface underlyingErc20 = EIP20Interface(underlying);
+        uint underlyingSupply = underlyingErc20.totalSupply();
+        uint8 underlyingDecimals = underlyingErc20.decimals();
+        uint8 feedDecimals = aggregator.decimals();
         uint reserves = uint(answer);
 
         // Check that the feed and underlying token decimals are equivalent and normalize if not

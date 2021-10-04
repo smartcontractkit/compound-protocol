@@ -49,13 +49,17 @@ describe('CPoR', function () {
     });
 
     it('should mint like normal if the feed is unset', async () => {
-      expect(await mintFresh(cToken, minter, mintAmount)).toSucceed();
+      const tx = await mintFresh(cToken, minter, mintAmount);
+      expect(tx).toSucceed();
+      expect(tx.gasUsed).toEqual(96104);
     });
 
     it('should mint if the feed is set and heartbeat is unset', async () => {
       await send(cToken, '_setFeed', [feed._address]);
       expect(await call(cToken, 'feed')).toEqual(feed._address);
-      expect(await mintFresh(cToken, minter, mintAmount)).toSucceed();
+      const tx = await mintFresh(cToken, minter, mintAmount)
+      expect(tx).toSucceed();
+      expect(tx.gasUsed).toEqual(111584);
     });
 
     it('should mint if the feed is set and heartbeat is set', async () => {
@@ -66,7 +70,9 @@ describe('CPoR', function () {
       const heartbeat = await call(cToken, 'heartbeat');
       expect(currentTime - heartbeat > updatedAt).toEqual(false);
       expect(await call(cToken, 'feed')).toEqual(feed._address);
-      expect(await mintFresh(cToken, minter, mintAmount)).toSucceed();
+      const tx = await mintFresh(cToken, minter, mintAmount)
+      expect(tx).toSucceed();
+      expect(tx.gasUsed).toEqual(111594);
     });
 
     it('should mint if the feed decimals is less than the underlying decimals', async () => {
