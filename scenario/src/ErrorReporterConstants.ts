@@ -168,6 +168,7 @@ const TokenErrorReporter = {
     'MINT_FEED_HEARTBEAT_CHECK',
     'MINT_FEED_INVALID_DECIMALS',
     'MINT_FEED_SUPPLY_CHECK',
+    'MINT_FEED_INVALID_ANSWER',
   ]
 };
 

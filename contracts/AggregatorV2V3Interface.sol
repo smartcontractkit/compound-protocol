@@ -1,8 +1,5 @@
 pragma solidity >=0.5.0;
 
-import "./AggregatorInterface.sol";
-import "./AggregatorV3Interface.sol";
-
 /**
  * @title The V2 & V3 Aggregator Interface
  * @notice Solidity V0.5 does not allow interfaces to inherit from other

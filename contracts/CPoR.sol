@@ -1,43 +1,14 @@
 pragma solidity ^0.5.16;
 
-import "./CErc20Delegate.sol";
-import "./AggregatorV3Interface.sol";
+import "./CErc20.sol";
+import "./AggregatorV2V3Interface.sol";
 
 /**
  * @title Compound's CPoR (Proof of Reserves) Contract
  * @notice CToken which checks reserves before minting
  * @author Chainlink
  */
-contract CPoR is CErc20Delegate, CPoRInterface {
-    /**
-     * @notice Construct a new money market
-     * @param underlying_ The address of the underlying asset
-     * @param comptroller_ The address of the Comptroller
-     * @param interestRateModel_ The address of the interest rate model
-     * @param initialExchangeRateMantissa_ The initial exchange rate, scaled by 1e18
-     * @param name_ ERC-20 name of this token
-     * @param symbol_ ERC-20 symbol of this token
-     * @param decimals_ ERC-20 decimal precision of this token
-     * @param admin_ Address of the administrator of this token
-     */
-    constructor(address underlying_,
-                ComptrollerInterface comptroller_,
-                InterestRateModel interestRateModel_,
-                uint initialExchangeRateMantissa_,
-                string memory name_,
-                string memory symbol_,
-                uint8 decimals_,
-                address payable admin_) public {
-        // Creator of the contract is admin during initialization
-        admin = msg.sender;
-
-        // Initialize the market
-        initialize(underlying_, comptroller_, interestRateModel_, initialExchangeRateMantissa_, name_, symbol_, decimals_);
-
-        // Set the proper admin now that initialization is done
-        admin = admin_;
-    }
-
+contract CPoR is CErc20, CPoRInterface {
     /**
      * @notice User supplies assets into the market and receives cTokens in exchange
      * @dev Overrides CErc20's mintFresh function to check the proof of reserves
@@ -47,45 +18,51 @@ contract CPoR is CErc20Delegate, CPoRInterface {
      * @return (uint, uint) An error code (0=success, otherwise a failure, see ErrorReporter.sol), and the actual mint amount.
      */
     function mintFresh(address account, uint mintAmount) internal returns (uint, uint) {
-        if (feed == address(0)) {
+        AggregatorV2V3Interface aggregator = AggregatorV2V3Interface(feed);
+        if (address(aggregator) == address(0)) {
             return super.mintFresh(account, mintAmount);
         }
 
         MathError mathErr;
         // Get the latest details from the feed
-        (,int answer,,uint updatedAt,) = AggregatorV3Interface(feed).latestRoundData();
+        (,int answer,,uint updatedAt,) = aggregator.latestRoundData();
+        if (answer < 0) {
+            return (fail(Error.TOKEN_MINT_ERROR, FailureInfo.MINT_FEED_INVALID_ANSWER), 0);
+        }
 
         uint oldestAllowed;
         // Use MAX_AGE if heartbeat is not explicitly set
-        (mathErr, oldestAllowed) = subUInt(block.timestamp, heartbeat == 0 ? MAX_AGE : heartbeat);
+        uint heartbeat_ = heartbeat;
+        (mathErr, oldestAllowed) = subUInt(block.timestamp, heartbeat_ == 0 ? MAX_AGE : heartbeat_);
         if (mathErr != MathError.NO_ERROR) {
             return (fail(Error.MATH_ERROR, FailureInfo.MINT_FEED_INVALID_TIMESTAMP), 0);
         }
 
-        // Check that the feed's answer is updated with the heartbeat
+        // Check that the feed's answer is updated within the heartbeat
         if (oldestAllowed > updatedAt) {
             return (fail(Error.TOKEN_MINT_ERROR, FailureInfo.MINT_FEED_HEARTBEAT_CHECK), 0);
         }
 
         // Get required info
-        uint underlyingSupply = EIP20Interface(underlying).totalSupply();
-        uint8 underlyingDecimals = EIP20Interface(underlying).decimals();
-        uint8 feedDecimals = AggregatorV3Interface(feed).decimals();
-        uint answerUint = uint(answer);
+        EIP20Interface underlyingErc20 = EIP20Interface(underlying);
+        uint underlyingSupply = underlyingErc20.totalSupply();
+        uint8 underlyingDecimals = underlyingErc20.decimals();
+        uint8 feedDecimals = aggregator.decimals();
+        uint reserves = uint(answer);
 
         // Check that the feed and underlying token decimals are equivalent and normalize if not
         if (underlyingDecimals < feedDecimals) {
             (mathErr, underlyingSupply) = mulUInt(underlyingSupply, 10 ** uint(feedDecimals - underlyingDecimals));
         } else if (feedDecimals < underlyingDecimals) {
-            (mathErr, answerUint) = mulUInt(answerUint, 10 ** uint(underlyingDecimals - feedDecimals));
+            (mathErr, reserves) = mulUInt(reserves, 10 ** uint(underlyingDecimals - feedDecimals));
         }
 
         if (mathErr != MathError.NO_ERROR) {
             return (fail(Error.MATH_ERROR, FailureInfo.MINT_FEED_INVALID_DECIMALS), 0);
         }
 
-        // Check that the supply of underlying tokens is not greater than the proof of reserves
-        if (underlyingSupply > answerUint) {
+        // Ensure that the current supply of underlying tokens is not greater than the reported reserves
+        if (underlyingSupply > reserves) {
             return (fail(Error.TOKEN_MINT_ERROR, FailureInfo.MINT_FEED_SUPPLY_CHECK), 0);
         }
 

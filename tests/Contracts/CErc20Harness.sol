@@ -4,7 +4,7 @@ import "../../contracts/CErc20Immutable.sol";
 import "../../contracts/CErc20Delegator.sol";
 import "../../contracts/CErc20Delegate.sol";
 import "../../contracts/CDaiDelegate.sol";
-import "../../contracts/CPoR.sol";
+import "../../contracts/CPoRDelegate.sol";
 import "./ComptrollerScenario.sol";
 
 contract CErc20Harness is CErc20Immutable {
@@ -241,7 +241,7 @@ contract CErc20DelegatorScenario is CErc20Delegator {
     }
 }
 
-contract CPoRDelegateHarness is CPoR {
+contract CPoRDelegateHarness is CPoRDelegate {
     event Log(string x, address y);
     event Log(string x, uint y);
 

@@ -1,0 +1,15 @@
+#!/usr/bin/env yarn repl -s
+
+Alias CompHolder "0x7587cAefc8096f5F40ACB83A09Df031a018C66ec"
+Alias CUSDCHolder "0xb3bd459e0598dde1fe84b1d0a1430be175b5d5be"
+Alias PAXGHolder "0x5b2f8818c7c3ed4c702d2a356ce3e3988be1381d"
+Alias cPAXG "0xbA381C66958096BDa27f932ff39523db67fbf1e3"
+
+Web3Fork "https://mainnet-eth.compound.finance/@13366276" (CompHolder PAXGHolder CUSDCHolder Comptroller)
+UseConfigs mainnet
+
+NewComptroller
+Comptroller SupportMarket cPAXG
+
+Assert True (Comptroller CheckListed cUSDC)
+Assert True (Comptroller CheckListed cPAXG)

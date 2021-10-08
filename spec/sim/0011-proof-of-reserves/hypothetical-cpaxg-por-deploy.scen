@@ -5,9 +5,12 @@ Alias PAXGHolder "0x5b2f8818c7c3ed4c702d2a356ce3e3988be1381d"
 Web3Fork "https://mainnet-eth.compound.finance/@13243343" (CompHolder PAXGHolder)
 UseConfigs mainnet
 
--- Deploy cPAXG using the CPoR contract
+-- Deploy cPAXG
 Erc20 Deploy Existing PAXG (address 0x45804880De22913dAFE09f4980848ECE6EcbAf78) "Paxos Gold"
-CToken Deploy CPoR cPAXG "Test cPAXG 📈" (Erc20 PAXG Address) (Comptroller Address) (InterestRateModel wbtc2_irm Address) 1 18 (User Admin Address)
+-- 1. Deploy an empty CPoRDelegate "cPAXGDelegate"
+CTokenDelegate Deploy CPoRDelegate cPAXGDelegate
+-- 2. Deploy and initialise a CPoRDelegator that uses "cPAXGDelegate" as the implementation
+CToken Deploy CPoRDelegator cPAXG "Test cPAXG 📈" (Erc20 PAXG Address) (Comptroller Address) (InterestRateModel wbtc2_irm Address) 1 8 (User Admin Address) (CTokenDelegate cPAXGDelegate Address) "0x"
 
 -- Deploy mock aggregator
 ChainlinkAggregator Deploy MockV3Aggregator MockPAXGPoRFeed 8 17327140500000
@@ -24,22 +27,26 @@ IncreaseTime 604910
 Governor GovernorBravo Proposal LastProposal Execute
 
 -- Sanity checks
+Print "> Sanity checks"
 Assert Equal (Erc20 PAXG TokenBalance cPAXG) (0)
 -- PAXG totalSupply == 173271405000000000000000 at block 13243343
 Assert Equal (Erc20 PAXG TotalSupply) (173271405000000000000000)
 
 -- Set cPAXG feed to mock PoR feed, make sure we have a fresh, valid answer
+Print "> Set feed"
 CToken cPAXG SetFeed MockPAXGPoRFeed
 ChainlinkAggregator MockPAXGPoRFeed UpdateAnswer 17327140500000
 Read (ChainlinkAggregator MockPAXGPoRFeed LatestAnswer)
 
 -- Test mint success
+Print "> Test mint success"
 From PAXGHolder (Erc20 PAXG Approve (Address cPAXG) 1000000000000000000000)
 From PAXGHolder (CToken cPAXG Mint 1000000000000000000)
 -- PAXG balance of cPAXG after mint (should be +1000000000000000000)
 Assert Equal (Erc20 PAXG TokenBalance cPAXG) (9998e14)
 
 -- Test mint unsuccessful when PoR check fails
+Print "> Test mint unsuccessful when PoR check fails"
 ChainlinkAggregator MockPAXGPoRFeed UpdateAnswer 10327140500000
 Read (ChainlinkAggregator MockPAXGPoRFeed LatestAnswer)
 AllowFailures
@@ -54,4 +61,4 @@ AllowFailures
 From PAXGHolder (CToken cPAXG Mint 1000000000000000000)
 Assert Failure TOKEN_MINT_ERROR MINT_FEED_HEARTBEAT_CHECK "0"
 
-Print "Deployment of cPAXG implementing Proof-of-Reserves succcesful"
+Print "> Deployment of cPAXG implementing Proof-of-Reserves succcesful"
