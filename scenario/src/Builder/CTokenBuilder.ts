@@ -1,7 +1,9 @@
 import { Event } from '../Event';
 import { World } from '../World';
 import { CErc20Delegator, CErc20DelegatorScenario } from '../Contract/CErc20Delegator';
+import { CPoRDelegator } from '../Contract/CPoRDelegator';
 import { CToken } from '../Contract/CToken';
+import { CPoR } from '../Contract/CPoR';
 import { Invokation, invoke } from '../Invokation';
 import { getAddressV, getExpNumberV, getNumberV, getStringV } from '../CoreValue';
 import { AddressV, NumberV, StringV } from '../Value';
@@ -16,6 +18,7 @@ const CEtherContract = getContract('CEther');
 const CErc20ScenarioContract = getTestContract('CErc20Scenario');
 const CEtherScenarioContract = getTestContract('CEtherScenario');
 const CEvilContract = getTestContract('CEvil');
+const CPoRDelegator = getContract('CPoRDelegator');
 
 export interface TokenData {
   invokation: Invokation<CToken>;
@@ -266,6 +269,79 @@ export async function buildCToken(
           decimals: decimals.toNumber(),
           underlying: "",
           contract: 'CEther',
+          initial_exchange_rate_mantissa: initialExchangeRate.encode().toString(),
+          admin: admin.val
+        };
+      }
+    ),
+
+    new Fetcher<
+      {
+        symbol: StringV;
+        name: StringV;
+        decimals: NumberV;
+        underlying: AddressV;
+        comptroller: AddressV;
+        interestRateModel: AddressV;
+        initialExchangeRate: NumberV;
+        admin: AddressV;
+        implementation: AddressV;
+        becomeImplementationData: StringV;
+      },
+      TokenData
+    >(
+    `
+      #### CPoRDelegator
+
+      * "CPoRDelegator symbol:<String> name:<String> underlying:<Address> comptroller:<Address> interestRateModel:<Address> initialExchangeRate:<Number> decimals:<Number> admin: <Address> implementation:<Address> becomeImplementationData:<String>" - The real deal CToken
+        * E.g. "CToken Deploy CPoRDelegator cPAXG \"Compound Paxos Gold\" (Erc20 PAXG Address) (Comptroller Address) (InterestRateModel Address) 1.0 8 Geoff (CToken CDaiDelegate Address) "0x0123434anyByTes314535q" "
+    `,
+      'CPoRDelegator',
+      [
+        new Arg('symbol', getStringV),
+        new Arg('name', getStringV),
+        new Arg('underlying', getAddressV),
+        new Arg('comptroller', getAddressV),
+        new Arg('interestRateModel', getAddressV),
+        new Arg('initialExchangeRate', getExpNumberV),
+        new Arg('decimals', getNumberV),
+        new Arg('admin', getAddressV),
+        new Arg('implementation', getAddressV),
+        new Arg('becomeImplementationData', getStringV)
+      ],
+      async (
+        world,
+        {
+          symbol,
+          name,
+          underlying,
+          comptroller,
+          interestRateModel,
+          initialExchangeRate,
+          decimals,
+          admin,
+          implementation,
+          becomeImplementationData
+        }
+      ) => {
+        return {
+          invokation: await CPoRDelegator.deploy<CPoRDelegator>(world, from, [
+            underlying.val,
+            comptroller.val,
+            interestRateModel.val,
+            initialExchangeRate.val,
+            name.val,
+            symbol.val,
+            decimals.val,
+            admin.val,
+            implementation.val,
+            becomeImplementationData.val
+          ]),
+          name: name.val,
+          symbol: symbol.val,
+          decimals: decimals.toNumber(),
+          underlying: underlying.val,
+          contract: 'CPoRDelegator',
           initial_exchange_rate_mantissa: initialExchangeRate.encode().toString(),
           admin: admin.val
         };

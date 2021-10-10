@@ -8,12 +8,13 @@ import { AddressV, NumberV, StringV } from '../Value';
 import { Arg, Fetcher, getFetcherValue } from '../Command';
 import { storeAndSaveContract } from '../Networks';
 import { getContract, getTestContract } from '../Contract';
+import { CPoRDelegate } from '../Contract/CPoRDelegate';
 
 const CDaiDelegateContract = getContract('CDaiDelegate');
 const CDaiDelegateScenarioContract = getTestContract('CDaiDelegateScenario');
 const CErc20DelegateContract = getContract('CErc20Delegate');
 const CErc20DelegateScenarioContract = getTestContract('CErc20DelegateScenario');
-
+const CPoRDelegateContract = getContract('CPoRDelegate');
 
 export interface CTokenDelegateData {
   invokation: Invokation<CErc20Delegate>;
@@ -48,6 +49,30 @@ export async function buildCTokenDelegate(
           name: name.val,
           contract: 'CDaiDelegate',
           description: 'Standard CDai Delegate'
+        };
+      }
+    ),
+
+    new Fetcher<{ name: StringV; }, CTokenDelegateData>(
+      `
+        #### CPoRDelegate
+
+        * "CPoRDelegate name:<String>"
+          * E.g. "CTokenDelegate Deploy CPoRDelegate cPAXGDelegate"
+      `,
+      'CPoRDelegate',
+      [
+        new Arg('name', getStringV)
+      ],
+      async (
+        world,
+        { name }
+      ) => {
+        return {
+          invokation: await CPoRDelegateContract.deploy<CPoRDelegate>(world, from, []),
+          name: name.val,
+          contract: 'CPoRDelegate',
+          description: 'Standard CPoR Delegate'
         };
       }
     ),

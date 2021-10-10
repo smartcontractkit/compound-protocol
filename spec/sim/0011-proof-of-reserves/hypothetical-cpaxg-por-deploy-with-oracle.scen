@@ -1,0 +1,90 @@
+#!/usr/bin/env yarn repl -s
+
+Alias CompHolder "0x7587cAefc8096f5F40ACB83A09Df031a018C66ec"
+Alias CUSDCHolder "0xb3bd459e0598dde1fe84b1d0a1430be175b5d5be"
+Alias PAXGHolder "0x5b2f8818c7c3ed4c702d2a356ce3e3988be1381d"
+Alias cPAXG "0xbA381C66958096BDa27f932ff39523db67fbf1e3"
+Web3Fork "https://mainnet-eth.compound.finance/@13366176" (CompHolder PAXGHolder CUSDCHolder)
+UseConfigs mainnet
+
+PriceOracle Deploy Simple
+
+-- Deploy mock aggregator (PoR feed)
+ChainlinkAggregator Deploy MockV3Aggregator MockPAXGPoRFeed 8 18090212500000
+
+-- update to the new oracle implementation
+Alias NewOracle "0x2772de57E2AFCcd464798f4A086c7Da007ca3111"
+-- Delegate and propose update
+From CompHolder (Comp Delegate CompHolder)
+From CompHolder (GovernorBravo GovernorBravoDelegator Propose "Update Oracle" [(Address Comptroller)] [0] ["_setPriceOracle(address)"] [[(address NewOracle)]])
+Print "New Oracle Set"
+
+-- Fast forward, vote, queue, execute
+MineBlock
+AdvanceBlocks 14000
+From CompHolder (GovernorBravo GovernorBravoDelegator Proposal LastProposal Vote For)
+AdvanceBlocks 20000
+GovernorBravo GovernorBravoDelegator Proposal LastProposal Queue
+IncreaseTime 604910
+GovernorBravo GovernorBravoDelegator Proposal LastProposal Execute
+
+-- Delegate and propose update
+From CompHolder (Comp Delegate CompHolder)
+From CompHolder (GovernorBravo GovernorBravoDelegator Propose "Add cPAXG Market" [(Address Comptroller) (Address Comptroller) (Address cPAXG)] [0 0 0] ["_supportMarket(address)" "_setCollateralFactor(address,uint256)" "_setReserveFactor(uint256)"] [[(address cPAXG)] [(address cPAXG) 0] [250000000000000000]])
+
+-- Fast forward, vote, queue, execute
+MineBlock
+AdvanceBlocks 14000
+From CompHolder (GovernorBravo GovernorBravoDelegator Proposal LastProposal Vote For)
+AdvanceBlocks 20000
+GovernorBravo GovernorBravoDelegator Proposal LastProposal Queue
+IncreaseTime 604910
+GovernorBravo GovernorBravoDelegator Proposal LastProposal Execute
+
+-- Sanity checks
+Print "> Sanity checks"
+Assert Equal (Erc20 PAXG TokenBalance cPAXG) (0)
+-- PAXG totalSupply == 180902125000000000000000 at block 13366176
+Assert Equal (Erc20 PAXG TotalSupply) (180902125000000000000000)
+
+-- Set cPAXG feed to mock PoR feed, make sure we have a fresh, valid answer
+Print "> Set feed"
+CToken cPAXG SetFeed MockPAXGPoRFeed
+ChainlinkAggregator MockPAXGPoRFeed UpdateAnswer 180902125000000000000000
+Read (ChainlinkAggregator MockPAXGPoRFeed LatestAnswer)
+
+-- Assert cPAXG market supported
+Assert True (Comptroller CheckListed cPAXG)
+Assert True (Comptroller CheckListed cUSDC)
+
+-- Set oracle prices
+PriceOracle SetPrice cPAXG 1.0
+PriceOracle SetPrice cUSDC 1.0
+Assert Equal (PriceOracle Price PAXG) (1e18)
+Assert Equal (PriceOracle Price USDC) (1e18)
+
+-- Ensure accrue interest works
+Print "> Accrue interest"
+CToken cPAXG AccrueInterest
+
+-- Mint test
+Print "> Mint"
+From PAXGHolder (Erc20 PAXG Approve (Address cPAXG) 10e18)
+From PAXGHolder (CToken cPAXG Mint 10e18)
+Assert Equal (Erc20 PAXG TokenBalance cPAXG) (9998e15)
+
+-- Borrow test
+Assert Equal (PriceOracle Price PAXG) (1e18)
+Assert Equal (PriceOracle Price USDC) (1e18)
+From CUSDCHolder (CToken cPAXG Borrow 1e18)
+Assert Equal (Erc20 PAXG TokenBalance CUSDCHolder) (1e18)
+Assert Equal (Erc20 PAXG TokenBalance cPAXG) (9e18)
+
+-- Repay borrow test
+From CUSDCHolder (Erc20 PAXG Approve (Address cPAXG) 1e18)
+From CUSDCHolder (CToken cPAXG RepayBorrow 1e18)
+Assert Equal (Erc20 PAXG TokenBalance CUSDCHolder) (0)
+Assert Equal (Erc20 PAXG TokenBalance cPAXG) (10e18)
+
+-- Redeem test (note: 50 cPAXG == 1 PAXG initially)
+From PAXGHolder (CToken cPAXG Redeem 50e8)

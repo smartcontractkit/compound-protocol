@@ -232,6 +232,33 @@ npx saddle -n rinkeby script token:match 0x19B674715cD20626415C738400FDd0d32D680
 }'
 ```
 
+Deploying a cToken with PoR (CPoRToken) from Source
+---------------------------------------
+
+To deploy a CPoRToken, you must first deploy the CPoRDelegate (implementation) contract:
+
+```sh
+VERIFY=true npx saddle -n rinkeby script token:cpordelegate:deploy
+```
+
+Then you can use the implementation address returned from the above command to deploy the CPoRDelegator (proxy) contract for the market you wish to create:
+
+```sh
+VERIFY=true npx saddle -n rinkeby script token:cpordelegator:deploy '{
+    "underlying": "0x866566b9a74a3bd10aeccb3ff57bd9809c162fde",
+    "comptroller": "$Comptroller",
+    "interestRateModel": "$Base200bps_Slope3000bps",
+    "initialExchangeRateMantissa": "1",
+    "name": "Compound Paxos Gold",
+    "symbol": "cPAXG",
+    "decimals": "18",
+    "admin": "$Timelock",
+    "implementation": "0x3eC6d0d505f4AF2841e03F6210F4a59b3c1e0EdD",
+    "becomeImplementationData": "0x"
+  }'
+```
+
+
 ## Deploying a CToken from Docker Build
 ---------------------------------------
 
