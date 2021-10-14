@@ -11,5 +11,5 @@ UseConfigs mainnet
 NewComptroller
 Comptroller SupportMarket cPAXG
 
-Assert True (Comptroller CheckListed cUSDC)
 Assert True (Comptroller CheckListed cPAXG)
+Assert True (Comptroller CheckListed cUSDC)

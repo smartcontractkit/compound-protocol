@@ -4,10 +4,9 @@ Alias CompHolder "0x7587cAefc8096f5F40ACB83A09Df031a018C66ec"
 Alias CUSDCHolder "0xb3bd459e0598dde1fe84b1d0a1430be175b5d5be"
 Alias PAXGHolder "0x5b2f8818c7c3ed4c702d2a356ce3e3988be1381d"
 Alias cPAXG "0xbA381C66958096BDa27f932ff39523db67fbf1e3"
-Web3Fork "https://mainnet-eth.compound.finance/@13366176" (CompHolder PAXGHolder CUSDCHolder)
+Alias FeedAdmin "0x939C9DA1a740E8d258584AA0844b29Ce94a1Ea22"
+Web3Fork "https://mainnet-eth.compound.finance/@13366176" (CompHolder PAXGHolder CUSDCHolder FeedAdmin)
 UseConfigs mainnet
-
-PriceOracle Deploy Simple
 
 -- Deploy mock aggregator (PoR feed)
 ChainlinkAggregator Deploy MockV3Aggregator MockPAXGPoRFeed 8 18090212500000
@@ -46,22 +45,22 @@ Print "> Sanity checks"
 Assert Equal (Erc20 PAXG TokenBalance cPAXG) (0)
 -- PAXG totalSupply == 180902125000000000000000 at block 13366176
 Assert Equal (Erc20 PAXG TotalSupply) (180902125000000000000000)
+Assert Equal (CToken cPAXG Comptroller) (Address Comptroller)
+Assert Equal (CToken cUSDC Comptroller) (Address Comptroller)
+Read (CToken cPAXG Address)
+Read (CToken cPAXG Underlying)
+Read (CToken cUSDC Address)
+Read (CToken cUSDC Underlying)
 
 -- Set cPAXG feed to mock PoR feed, make sure we have a fresh, valid answer
 Print "> Set feed"
-CToken cPAXG SetFeed MockPAXGPoRFeed
+From FeedAdmin (CToken cPAXG SetFeed MockPAXGPoRFeed)
 ChainlinkAggregator MockPAXGPoRFeed UpdateAnswer 180902125000000000000000
 Read (ChainlinkAggregator MockPAXGPoRFeed LatestAnswer)
 
 -- Assert cPAXG market supported
 Assert True (Comptroller CheckListed cPAXG)
 Assert True (Comptroller CheckListed cUSDC)
-
--- Set oracle prices
-PriceOracle SetPrice cPAXG 1.0
-PriceOracle SetPrice cUSDC 1.0
-Assert Equal (PriceOracle Price PAXG) (1e18)
-Assert Equal (PriceOracle Price USDC) (1e18)
 
 -- Ensure accrue interest works
 Print "> Accrue interest"
@@ -74,13 +73,13 @@ From PAXGHolder (CToken cPAXG Mint 10e18)
 Assert Equal (Erc20 PAXG TokenBalance cPAXG) (9998e15)
 
 -- Borrow test
-Assert Equal (PriceOracle Price PAXG) (1e18)
-Assert Equal (PriceOracle Price USDC) (1e18)
+Print "> Borrow"
 From CUSDCHolder (CToken cPAXG Borrow 1e18)
 Assert Equal (Erc20 PAXG TokenBalance CUSDCHolder) (1e18)
 Assert Equal (Erc20 PAXG TokenBalance cPAXG) (9e18)
 
 -- Repay borrow test
+Print "> Repay"
 From CUSDCHolder (Erc20 PAXG Approve (Address cPAXG) 1e18)
 From CUSDCHolder (CToken cPAXG RepayBorrow 1e18)
 Assert Equal (Erc20 PAXG TokenBalance CUSDCHolder) (0)
