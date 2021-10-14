@@ -242,6 +242,7 @@ module.exports = {
     'token:cpordelegate:deploy': "script/saddle/deployCPoRDelegate.js",
     'token:cpordelegator:deploy': "script/saddle/deployCPoRDelegator.js",
     'token:verify': "script/saddle/verifyToken.js",
+    'token:cpordelegate:verify': "script/saddle/verifyCPoRDelegateToken.js",
     'token:match': "script/saddle/matchToken.js",
     'flywheel:init': "script/saddle/flywheelInit.js"
   }
