@@ -11,14 +11,103 @@ import {
   CPoRDelegate__factory,
   ComptrollerG6,
   ComptrollerG6__factory,
-  CErc20,
-  CErc20__factory,
+  CErc20Delegate,
+  CErc20Delegate__factory,
   ERC20,
   ERC20__factory,
   PriceOracle__factory,
   PriceOracle,
+  UniswapAnchoredView__factory,
 } from "../types";
 import { BigNumber, BigNumberish } from "@ethersproject/bignumber";
+
+const uavTokenConfigs = [
+  {
+    // "NAME": "ETH",
+    cToken: "0x4Ddc2D193948926D02f9B1fE9e1daa0718270ED5",
+    underlying: "0x0000000000000000000000000000000000000000",
+    symbolHash:
+      "0xaaaebeba3810b1e6b70781f14b2d72c1cb89c0b2b320c43bb67ff79f562f5ff4",
+    baseUnit: "1000000000000000000",
+    priceSource: "2",
+    fixedPrice: "0",
+    uniswapMarket: "0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc",
+    reporter: "0x264BDDFD9D93D48d759FBDB0670bE1C6fDd50236",
+    reporterMultiplier: "10000000000000000",
+    isUniswapReversed: true,
+  },
+  {
+    // "NAME": "DAI",
+    cToken: "0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643",
+    underlying: "0x6B175474E89094C44Da98b954EedeAC495271d0F",
+    symbolHash:
+      "0xa5e92f3efb6826155f1f728e162af9d7cda33a574a1153b58f03ea01cc37e568",
+    baseUnit: "1000000000000000000",
+    priceSource: "2",
+    fixedPrice: "0",
+    uniswapMarket: "0xA478c2975Ab1Ea89e8196811F51A7B7Ade33eB11",
+    reporter: "0xb2419f587f497CDd64437f1B367E2e80889631ea",
+    reporterMultiplier: "10000000000000000",
+    isUniswapReversed: false,
+  },
+  {
+    // "NAME": "USDC",
+    cToken: "0x39AA39c021dfbaE8faC545936693aC917d5E7563",
+    underlying: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    symbolHash:
+      "0xd6aca1be9729c13d677335161321649cccae6a591554772516700f986f942eaa",
+    baseUnit: "1000000",
+    priceSource: "1",
+    fixedPrice: "1000000",
+    uniswapMarket: "0x0000000000000000000000000000000000000000",
+    reporter: "0x0000000000000000000000000000000000000000",
+    reporterMultiplier: "1",
+    isUniswapReversed: false,
+  },
+  {
+    // "NAME": "USDT",
+    cToken: "0xf650C3d88D12dB855b8bf7D11Be6C55A4e07dCC9",
+    underlying: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+    symbolHash:
+      "0x8b1a1d9c2b109e527c9134b25b1a1833b16b6594f92daa9f6d9b7a6024bce9d0",
+    baseUnit: "1000000",
+    priceSource: "1",
+    fixedPrice: "1000000",
+    uniswapMarket: "0x0000000000000000000000000000000000000000",
+    reporter: "0x0000000000000000000000000000000000000000",
+    reporterMultiplier: "1",
+    isUniswapReversed: false,
+  },
+  {
+    // "NAME": "TUSD",
+    cToken: "0x12392F67bdf24faE0AF363c24aC620a2f67DAd86",
+    underlying: "0x0000000000085d4780B73119b644AE5ecd22b376",
+    symbolHash:
+      "0xa1b8d8f7e538bb573797c963eeeed40d0bcb9f28c56104417d0da1b372ae3051",
+    baseUnit: "1000000000000000000",
+    priceSource: "1",
+    fixedPrice: "1000000",
+    uniswapMarket: "0x0000000000000000000000000000000000000000",
+    reporter: "0x0000000000000000000000000000000000000000",
+    reporterMultiplier: "1",
+    isUniswapReversed: false,
+  },
+  {
+    // This is a dummy token ONLY used for test scenarios
+    // "NAME": "PAXG",
+    cToken: "0xbA381C66958096BDa27f932ff39523db67fbf1e3",
+    underlying: "0x45804880De22913dAFE09f4980848ECE6EcbAf78",
+    symbolHash:
+      "0xde44649a6513182d82aeab5e881fdc66e5d5952e54f879dacc865ed226a90e71",
+    baseUnit: "1000000000000000000",
+    priceSource: "2",
+    fixedPrice: "0",
+    uniswapMarket: "0x9C4Fe5FFD9A9fC5678cFBd93Aa2D4FD684b67C4C",
+    reporter: "0x939C9DA1a740E8d258584AA0844b29Ce94a1Ea22",
+    reporterMultiplier: "10000000000000000",
+    isUniswapReversed: false,
+  },
+];
 
 const TEST_UAV_ADDRESS = "0x2772de57E2AFCcd464798f4A086c7Da007ca3111";
 const TEST_CPAXG_ADDRESS = "0xbA381C66958096BDa27f932ff39523db67fbf1e3";
@@ -82,7 +171,7 @@ describe("Hypothetical cPAXG deploy scenario with oracle", () => {
   let compToken: Comp;
   let govBravo: GovernorBravoDelegate;
   let cPaxg: CPoRDelegate;
-  let cUsdc: CErc20;
+  let cUsdc: CErc20Delegate;
   let comptroller: ComptrollerG6;
   let paxg: ERC20;
   before(async () => {
@@ -90,17 +179,17 @@ describe("Hypothetical cPAXG deploy scenario with oracle", () => {
     deployer = signers[0];
     feedAdmin = await ethers.getSigner(FEED_ADMIN_ADDRESS);
 
-    comptroller = await new ComptrollerG6__factory()
+    comptroller = await new ComptrollerG6__factory(deployer)
       .attach(COMPTROLLER_ADDRESS)
       .connect(deployer);
 
     compHolder = await impersonate(COMP_HOLDER_ADDRESS);
-    compToken = await new Comp__factory()
+    compToken = await new Comp__factory(deployer)
       .attach(COMP_ADDRESS)
       .connect(compHolder);
 
     // GovernorBravoDelegator is a proxy, actual interface is GovernorBravoDelegate
-    govBravo = await new GovernorBravoDelegate__factory()
+    govBravo = await new GovernorBravoDelegate__factory(deployer)
       .attach(GOV_BRAVO_DELEGATOR_ADDRESS)
       .connect(compHolder);
 
@@ -111,11 +200,11 @@ describe("Hypothetical cPAXG deploy scenario with oracle", () => {
         ERC20__factory.createInterface()
       ) as ERC20
     ).connect(paxgHolder);
-    cPaxg = await new CPoRDelegate__factory()
+    cPaxg = await new CPoRDelegate__factory(deployer)
       .attach(TEST_CPAXG_ADDRESS)
       .connect(paxgHolder);
     cUsdcHolder = await impersonate(CUSDC_HOLDER_ADDRESS);
-    cUsdc = await new CErc20__factory()
+    cUsdc = await new CErc20Delegate__factory(deployer)
       .attach(CUSDC_ADDRESS)
       .connect(cUsdcHolder);
   });
@@ -160,12 +249,19 @@ describe("Hypothetical cPAXG deploy scenario with oracle", () => {
     ).deploy("8", "17809126900000");
 
     // Gov - Set price oracle
+    // Deploy a mock UAV
+    const uav = await new UniswapAnchoredView__factory(deployer).deploy(
+      "150000000000000000",
+      1800,
+      uavTokenConfigs
+    );
+    await uav.validate("0", "0", "0", "177071799161");
     await passThroughGov(
       "Update oracle",
       [comptroller.address],
       [0],
       ["_setPriceOracle(address)"],
-      [abiEncoder.encode(["address"], [TEST_UAV_ADDRESS])]
+      [abiEncoder.encode(["address"], [uav.address])]
     );
 
     // Gov - Support new cPAXG market in Comptroller
@@ -202,7 +298,10 @@ describe("Hypothetical cPAXG deploy scenario with oracle", () => {
     await cPaxg.mint(exp(10, 18));
     expect(await paxg.balanceOf(cPaxg.address)).to.equal(exp(9998, 15));
 
-    expect(await comptroller.oracle()).to.equal(TEST_UAV_ADDRESS);
+    expect(await comptroller.oracle()).to.equal(
+      uav.address,
+      "The price correct oracle has been set"
+    );
     const oracle = new ethers.Contract(
       TEST_UAV_ADDRESS,
       PriceOracle__factory.createInterface(),
@@ -213,8 +312,20 @@ describe("Hypothetical cPAXG deploy scenario with oracle", () => {
       "1770717991000000000000"
     );
 
+    // Borrow PAXG
     await cPaxg.connect(cUsdcHolder).borrow(exp(1, 18));
-    // Assert Equal (Erc20 PAXG TokenBalance CUSDCHolder) (1e18)
-    // Assert Equal (Erc20 PAXG TokenBalance cPAXG) (9e18)
+    expect(await paxg.balanceOf(cUsdcHolder.address)).to.equal(exp(9998, 14));
+    expect(await paxg.balanceOf(cPaxg.address)).to.equal(exp(8998, 15));
+
+    // Repay
+    await paxg.connect(cUsdcHolder).approve(cPaxg.address, exp(1, 18));
+    await cPaxg.connect(cUsdcHolder).repayBorrow(exp(9998, 14));
+    // Assert Equal (Erc20 PAXG TokenBalance CUSDCHolder) (0)
+    expect(await paxg.balanceOf(cUsdcHolder.address)).to.equal(0);
+    // Assert Equal (Erc20 PAXG TokenBalance cPAXG) (10e18)
+    expect(await paxg.balanceOf(cPaxg.address)).to.equal(exp(999760004, 10));
+
+    // -- Redeem test (note: 50 cPAXG == 1 PAXG initially)
+    await cPaxg.redeem(exp(50, 8));
   }).timeout(180_0000);
 });

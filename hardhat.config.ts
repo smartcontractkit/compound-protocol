@@ -31,7 +31,7 @@ const hardhatConfig: HardhatUserConfig = {
       accounts: [
         {
           privateKey: MAINNET_PK,
-          balance: "870000000000000000",
+          balance: "87000000000000000000",
         },
       ],
     },
@@ -41,18 +41,31 @@ const hardhatConfig: HardhatUserConfig = {
     },
   },
   solidity: {
-    version: "0.5.16",
-    settings: {
-      optimizer: {
-        enabled: true,
-        runs: 0,
-      },
-      outputSelection: {
-        "*": {
-          "*": ["storageLayout"],
+    compilers: [
+      {
+        version: "0.5.16",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 0,
+          },
+          outputSelection: {
+            "*": {
+              "*": ["storageLayout"],
+            },
+          },
         },
       },
-    },
+      {
+        version: "0.6.12",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 0,
+          },
+        },
+      },
+    ],
   },
   typechain: {
     outDir: "types",
