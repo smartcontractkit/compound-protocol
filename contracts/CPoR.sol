@@ -83,9 +83,13 @@ contract CPoR is CErc20, CPoRInterface {
             return fail(Error.UNAUTHORIZED, FailureInfo.SET_FEED_ADMIN_OWNER_CHECK);
         }
 
-        emit NewFeed(address(feed), newFeed);
+        address oldFeed = address(feed);
+        if (newFeed == oldFeed) {
+            return fail(Error.BAD_INPUT, FailureInfo.SET_FEED_ADDRESS_INPUT_CHECK);
+        }
 
         feed = AggregatorV2V3Interface(newFeed);
+        emit NewFeed(oldFeed, newFeed);
 
         return uint(Error.NO_ERROR);
     }
