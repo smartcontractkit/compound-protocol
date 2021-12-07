@@ -43,7 +43,7 @@ contract CPoR is CErc20, CPoRInterface {
             return (fail(Error.TOKEN_MINT_ERROR, FailureInfo.MINT_FEED_HEARTBEAT_CHECK), 0);
         }
 
-        // Get required info
+        // Load details of underlying asset from the CErc20 base contract
         EIP20Interface underlyingErc20 = EIP20Interface(underlying);
         uint underlyingSupply = underlyingErc20.totalSupply();
         uint8 underlyingDecimals = underlyingErc20.decimals();
