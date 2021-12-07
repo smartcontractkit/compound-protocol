@@ -18,6 +18,7 @@ contract CPoR is CErc20, CPoRInterface {
      * @return (uint, uint) An error code (0=success, otherwise a failure, see ErrorReporter.sol), and the actual mint amount.
      */
     function mintFresh(address account, uint mintAmount) internal returns (uint, uint) {
+        // Load the proof-of-reserves `feed` that is stored in CPoRStorage (which is extended by CPoRInterface)
         AggregatorV2V3Interface aggregator = AggregatorV2V3Interface(feed);
         if (address(aggregator) == address(0)) {
             return super.mintFresh(account, mintAmount);
