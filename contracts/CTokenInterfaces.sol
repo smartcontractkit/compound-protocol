@@ -3,6 +3,7 @@ pragma solidity ^0.5.16;
 import "./ComptrollerInterface.sol";
 import "./InterestRateModel.sol";
 import "./EIP20NonStandardInterface.sol";
+import "./AggregatorV2V3Interface.sol";
 
 contract CTokenStorage {
     /**
@@ -318,7 +319,7 @@ contract CPoRStorage {
     /**
      * @notice Address of the feed for reserves
      */
-    address public feed;
+    AggregatorV2V3Interface public feed;
 
     /**
      * @notice Configured acceptable age of the feed's answer

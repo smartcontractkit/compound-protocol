@@ -19,7 +19,7 @@ contract CPoR is CErc20, CPoRInterface {
      */
     function mintFresh(address account, uint mintAmount) internal returns (uint, uint) {
         // Load the proof-of-reserves `feed` that is stored in CPoRStorage (which is extended by CPoRInterface)
-        AggregatorV2V3Interface aggregator = AggregatorV2V3Interface(feed);
+        AggregatorV2V3Interface aggregator = feed;
         if (address(aggregator) == address(0)) {
             return super.mintFresh(account, mintAmount);
         }
@@ -83,9 +83,9 @@ contract CPoR is CErc20, CPoRInterface {
             return fail(Error.UNAUTHORIZED, FailureInfo.SET_FEED_ADMIN_OWNER_CHECK);
         }
 
-        emit NewFeed(feed, newFeed);
+        emit NewFeed(address(feed), newFeed);
 
-        feed = newFeed;
+        feed = AggregatorV2V3Interface(newFeed);
 
         return uint(Error.NO_ERROR);
     }
