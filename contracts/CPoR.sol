@@ -30,6 +30,7 @@ contract CPoR is CErc20, CPoRInterface {
             return (fail(Error.TOKEN_MINT_ERROR, FailureInfo.MINT_FEED_INVALID_ANSWER), 0);
         }
 
+        // Load the proof-of-reserves `heartbeat` that is stored in CPoRStorage (which is extended by CPoRInterface)
         // Use MAX_AGE if heartbeat is not explicitly set
         uint heartbeat_ = heartbeat;
         (MathError mathErr, uint oldestAllowed) = subUInt(block.timestamp, heartbeat_ == 0 ? MAX_AGE : heartbeat_);
