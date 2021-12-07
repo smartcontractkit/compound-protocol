@@ -24,17 +24,15 @@ contract CPoR is CErc20, CPoRInterface {
             return super.mintFresh(account, mintAmount);
         }
 
-        MathError mathErr;
         // Get the latest details from the feed
         (,int answer,,uint updatedAt,) = aggregator.latestRoundData();
         if (answer < 0) {
             return (fail(Error.TOKEN_MINT_ERROR, FailureInfo.MINT_FEED_INVALID_ANSWER), 0);
         }
 
-        uint oldestAllowed;
         // Use MAX_AGE if heartbeat is not explicitly set
         uint heartbeat_ = heartbeat;
-        (mathErr, oldestAllowed) = subUInt(block.timestamp, heartbeat_ == 0 ? MAX_AGE : heartbeat_);
+        (MathError mathErr, uint oldestAllowed) = subUInt(block.timestamp, heartbeat_ == 0 ? MAX_AGE : heartbeat_);
         if (mathErr != MathError.NO_ERROR) {
             return (fail(Error.MATH_ERROR, FailureInfo.MINT_FEED_INVALID_TIMESTAMP), 0);
         }
