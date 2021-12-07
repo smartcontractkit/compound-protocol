@@ -18,22 +18,22 @@ contract CPoR is CErc20, CPoRInterface {
      * @return (uint, uint) An error code (0=success, otherwise a failure, see ErrorReporter.sol), and the actual mint amount.
      */
     function mintFresh(address account, uint mintAmount) internal returns (uint, uint) {
-        AggregatorV2V3Interface aggregator = AggregatorV2V3Interface(feed);
+        // Load the proof-of-reserves `feed` that is stored in CPoRStorage (which is extended by CPoRInterface)
+        AggregatorV2V3Interface aggregator = feed;
         if (address(aggregator) == address(0)) {
             return super.mintFresh(account, mintAmount);
         }
 
-        MathError mathErr;
         // Get the latest details from the feed
         (,int answer,,uint updatedAt,) = aggregator.latestRoundData();
         if (answer < 0) {
             return (fail(Error.TOKEN_MINT_ERROR, FailureInfo.MINT_FEED_INVALID_ANSWER), 0);
         }
 
-        uint oldestAllowed;
+        // Load the proof-of-reserves `heartbeat` that is stored in CPoRStorage (which is extended by CPoRInterface)
         // Use MAX_AGE if heartbeat is not explicitly set
         uint heartbeat_ = heartbeat;
-        (mathErr, oldestAllowed) = subUInt(block.timestamp, heartbeat_ == 0 ? MAX_AGE : heartbeat_);
+        (MathError mathErr, uint oldestAllowed) = subUInt(block.timestamp, heartbeat_ == 0 ? MAX_AGE : heartbeat_);
         if (mathErr != MathError.NO_ERROR) {
             return (fail(Error.MATH_ERROR, FailureInfo.MINT_FEED_INVALID_TIMESTAMP), 0);
         }
@@ -43,7 +43,7 @@ contract CPoR is CErc20, CPoRInterface {
             return (fail(Error.TOKEN_MINT_ERROR, FailureInfo.MINT_FEED_HEARTBEAT_CHECK), 0);
         }
 
-        // Get required info
+        // Load details of underlying asset from the CErc20 base contract
         EIP20Interface underlyingErc20 = EIP20Interface(underlying);
         uint underlyingSupply = underlyingErc20.totalSupply();
         uint8 underlyingDecimals = underlyingErc20.decimals();
@@ -83,9 +83,13 @@ contract CPoR is CErc20, CPoRInterface {
             return fail(Error.UNAUTHORIZED, FailureInfo.SET_FEED_ADMIN_OWNER_CHECK);
         }
 
-        emit NewFeed(feed, newFeed);
+        address oldFeed = address(feed);
+        if (newFeed == oldFeed) {
+            return fail(Error.BAD_INPUT, FailureInfo.SET_FEED_ADDRESS_INPUT_CHECK);
+        }
 
-        feed = newFeed;
+        feed = AggregatorV2V3Interface(newFeed);
+        emit NewFeed(oldFeed, newFeed);
 
         return uint(Error.NO_ERROR);
     }

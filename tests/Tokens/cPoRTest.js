@@ -59,7 +59,7 @@ describe('CPoR', function () {
       expect(await call(cToken, 'feed')).toEqual(feed._address);
       const tx = await mintFresh(cToken, minter, mintAmount)
       expect(tx).toSucceed();
-      expect(tx.gasUsed).toEqual(111584);
+      expect(tx.gasUsed).toEqual(111581);
     });
 
     it('should mint if the feed is set and heartbeat is set', async () => {
@@ -72,7 +72,7 @@ describe('CPoR', function () {
       expect(await call(cToken, 'feed')).toEqual(feed._address);
       const tx = await mintFresh(cToken, minter, mintAmount)
       expect(tx).toSucceed();
-      expect(tx.gasUsed).toEqual(111594);
+      expect(tx.gasUsed).toEqual(111591);
     });
 
     it('should mint if the feed decimals is less than the underlying decimals', async () => {
@@ -122,6 +122,20 @@ describe('CPoR', function () {
     it('should set the feed', async () => {
       expect(await send(cToken, '_setFeed', [feed._address])).toSucceed();
       expect(await call(cToken, 'feed')).toEqual(feed._address);
+
+      // Try to set a different feed address
+      const newFeed = await deploy('MockV3Aggregator', [6, 1000000]);
+      expect(await send(cToken, '_setFeed', [newFeed._address])).toSucceed();
+      expect(await call(cToken, 'feed')).toEqual(newFeed._address);
+    });
+
+    it('should not set the feed if setting to the same address', async () => {
+      // Set the feed address
+      expect(await send(cToken, '_setFeed', [feed._address])).toSucceed();
+      expect(await call(cToken, 'feed')).toEqual(feed._address);
+
+      // Try to set the feed address
+      expect(await send(cToken, '_setFeed', [feed._address])).toHaveTokenFailure('BAD_INPUT', 'SET_FEED_ADDRESS_INPUT_CHECK')
     });
 
     it('should unset the feed', async () => {

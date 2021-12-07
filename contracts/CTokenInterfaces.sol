@@ -3,6 +3,7 @@ pragma solidity ^0.5.16;
 import "./ComptrollerInterface.sol";
 import "./InterestRateModel.sol";
 import "./EIP20NonStandardInterface.sol";
+import "./AggregatorV2V3Interface.sol";
 
 contract CTokenStorage {
     /**
@@ -318,7 +319,7 @@ contract CPoRStorage {
     /**
      * @notice Address of the feed for reserves
      */
-    address public feed;
+    AggregatorV2V3Interface public feed;
 
     /**
      * @notice Configured acceptable age of the feed's answer
@@ -339,6 +340,22 @@ contract CPoRInterface is CPoRStorage {
 
     /*** Admin Functions ***/
 
+    /**
+     * @notice Set the proof-of-reserves feed that the CPoR contract will use
+     *      when checking reserves of the underlying asset. `newFeed` is
+     *      expected to implement the AggregatorV2V3Interface.
+     * @param newFeed address of the feed implementing the AggregatorV2V3Interface
+     * @return 0 upon success, otherwise a failure code
+     */
     function _setFeed(address newFeed) external returns (uint);
+
+    /**
+     * @notice Set the required heartbeat for the proof-of-reserves feed.
+     *      The heartbeat is used by the CPoR contract to check if the
+     *      latest answer from the PoR feed is fresh enough (i.e., within
+     *      the specified heartbeat).
+     * @param newHeartbeat heartbeat, in seconds
+     * @return 0 upon success, otherwise a failure code
+     */
     function _setHeartbeat(uint newHeartbeat) external returns (uint);
 }
